@@ -1,0 +1,46 @@
+.btn {
+  background-color: #2d6396;
+  color:white;
+  padding: 6px 30px;
+ font-size: 13px;
+ margin-left: 0px;
+}
+
+.btn-special {
+    width: 150px;
+    height: 35px;
+    margin-top: 5px;
+    color: #ffffff;
+    font-size: 14px;
+    background-color: #2d6396;
+    border: 1px solid #2d6396;
+ }
+
+.links {
+  stroke: #000;
+  stroke-opacity: 0.3;
+}
+
+.polygons {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1;
+}
+
+/* .polygons :first-child {
+  fill: #f00;
+} */
+
+.sites {
+  fill: #000;
+  stroke: #000;
+  stroke-width: 0.8;
+}
+
+.sites :first-child {
+  fill: #000;
+}
+
+.popover {
+	pointer-events: none;
+}

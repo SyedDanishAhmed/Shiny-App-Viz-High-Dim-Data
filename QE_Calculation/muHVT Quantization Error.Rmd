@@ -1,0 +1,149 @@
+---
+title: "muHVT Quantization Error Calculation"
+author: "Mu Sigma Inc."
+date: "24 January 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# muHVT Quantization Error
+
+This document explains the Quantization Error as calculated in muHVT. 
+
+## Setup
+
+```{r echo=TRUE}
+library(dplyr)
+library(muHVT)
+library(purrr)
+library(DT)
+
+# Reading dataset
+hotel <- read.csv("hotel.csv")
+
+# Ignoring non numeric columns
+hotel <- hotel[,colnames(hotel)[map_lgl(hotel,~is.numeric(.x))]]
+
+hotel <- hotel %>% select(-hotel_id)
+```
+
+### Summary of columns used for HVT
+
+```{r pressure, echo=TRUE}
+hotel %>% summary()
+```
+
+## muHVT 
+
+```{r include=FALSE}
+hvt.results.hotel <- muHVT::HVT(hotel,
+                                nclust = 15,
+                                depth = 1,
+                                quant.err = 0.2,
+                                projection.scale = 10,
+                                normalize = T,
+                                distance_metric = "L1_Norm",
+                                error_metric = "mean"
+)
+```
+
+Below is the Quantization Error for 15 clusters at level 1
+
+```{r}
+hvt.results.hotel[[3]][["error.quant"]][[1]]
+```
+
+## Recreating Quantization Error calculation
+
+We will re-create Quantization Error calculation for cluster 10. 
+
+### Summary 
+
+Below is the scaled data in cluster 10.
+
+```{r}
+i = 10
+scaled_data <- hvt.results.hotel[[3]]$clusters[[i]]
+DT::datatable(scaled_data)
+```
+
+Below is the summary of data in cluster 10
+
+```{r}
+scaled_data %>% summary()
+```
+
+### Calculating Centroids for Cluster 10
+
+```{r}
+centroid = stats::kmeans(scaled_data, 1, iter.max=100, algorithm="Hartigan-Wong")$centers
+centroid
+```
+
+### Function to calculate Quantization Error
+
+```{r}
+
+# Function to calculate Manhattan distance (L1_Norm)
+manhattan.dist <- function(x1, x2){
+  # x1 and x2 are feature vectors
+  sum(abs(x1 - x2))
+} 
+
+# Funcation to calculate Euclidean distance (L2_Norm)
+euclidean.dist <- function(x1, x2){
+  # x1 and x2 are feature vectors
+  sqrt(sum((x1 - x2) ^ 2))
+} 
+```
+
+### Quantization Error for each point from Centroid
+
+```{r warning=FALSE}
+quant_error <- 
+  map_dbl(1:nrow(scaled_data), 
+             ~ manhattan.dist(as.numeric(scaled_data[.x,]),
+                        as.numeric(centroid[1,])))
+
+```
+
+### Overall Quantization Error for the cluster
+
+```{r}
+mean(quant_error)
+```
+The QE value obtained from the actual and recreated function is matching.
+
+### Absolute deviation across features
+
+Absolute distance of each point from its centroid across features can be seen below. 
+Now to calculate the distance of a point from its centroid, all the deviations for that point for each feature will get added and hence higher the number of features, higher will be the distance thus resulting in higher value of error.
+
+The mean absolute deviation will be the mean of sum of each row in the table below.
+
+```{r}
+absolute_deviation <- 
+  map_dfc(1:nrow(scaled_data), 
+             ~ abs(as.numeric(scaled_data[.x,]) - as.numeric(centroid[1,]))) %>% 
+  as.matrix() %>% 
+  t() %>% 
+  as.data.frame()
+row.names(absolute_deviation) <- 1:nrow(absolute_deviation)
+colnames(absolute_deviation) <- colnames(scaled_data)
+DT::datatable(absolute_deviation)
+```
+
+
+### Conclusion
+
+The distance of each point in the cluster from the centroid is the sum of the absolute distance values for each of the features. Therefore, higher number of features result in higher value of quantization error as the distance for each feature adds up. Thus, higher the number of features, higher will be the Quantization Error.
+
+
